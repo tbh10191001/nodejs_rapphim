@@ -1,0 +1,27 @@
+{
+  "name": "backendrapphim",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon --inspect app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tbh10191001/nodejs_rapphim.git"
+  },
+  "keywords": [
+    "nodejs"
+  ],
+  "author": "BaoHaan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tbh10191001/nodejs_rapphim/issues"
+  },
+  "homepage": "https://github.com/tbh10191001/nodejs_rapphim#readme",
+  "dependencies": {
+    "express": "^4.18.2",
+    "nodemon": "^2.0.22"
+  }
+}
