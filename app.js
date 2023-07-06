@@ -1,13 +1,14 @@
-// nap thu vien express
+require('dotenv').config()
+const bp = require('body-parser')
 const express = require('express')
+const initRoute = require('./route/api')
 const app = express()
-const port = 3000
 
-//route
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
+app.use(bp.json())
+app.use(bp.urlencoded({ extended: true }))
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+initRoute(app)
+
+app.listen(process.env.APP_PORT, () => {
+  console.log(`Example app listening on port ${process.env.APP_PORT}`)
 })
