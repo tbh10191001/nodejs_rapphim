@@ -1,12 +1,11 @@
 const pool = require('../config/database');
 const jwt = require('../middleware/JWTacction');
 const bcrypt = require('bcrypt');
-const sendMail = require('../middleware/mailer');
+const mail = require('../middleware/SendMailer');
 
 let login = async (req, res) => {
     try {
         const { email, matkhau } = req.body;
-
         if (!email || !matkhau) {
             return res.status(300).json({
                 message: 'Vui lòng nhập đầy đủ thông tin đăng nhập',
@@ -31,17 +30,35 @@ let login = async (req, res) => {
             'SELECT * FROM account WHERE email = ? AND matkhau = ?',
             [email, getMatkhau[0].matkhau],
         );
-        const [person] = await pool.execute(
-            'SELECT * FROM person WHERE sdt = ?',
-            [account[0].sdt],
-        );
-
-        const token = jwt.createJWT(person[0]);
+        console.log(account[0].marole);
+        let data = null;
+        if (account[0].marole === 2) {
+            const [person] = await pool.execute(
+                'SELECT * FROM person WHERE sdt = ?',
+                [account[0].sdt],
+            );
+            const [tien] = await pool.execute(
+                'SELECT vitien FROM khachhang WHERE sdt = ?',
+                [account[0].sdt],
+            );
+            const role = { idrole: account[0].marole };
+            const user = person[0];
+            const vitien = tien[0].vitien;
+            data = { user, role, vitien };
+        } else {
+            const [person] = await pool.execute(
+                'SELECT * FROM person WHERE sdt = ?',
+                [account[0].sdt],
+            );
+            const role = { idrole: account[0].marole };
+            const user = person[0];
+            data = { user, role };
+        }
+        const token = jwt.createJWT(data);
 
         return res.status(200).json({
             message: 'Login successful',
             token: token,
-            decoded: decoded,
         });
     } catch (err) {
         console.log(err);
@@ -54,17 +71,12 @@ let login = async (req, res) => {
 let signup = async (req, res) => {
     try {
         const { email, matkhau, sdt, hoten, gioitinh, cccd } = req.body;
+        console.log(email, matkhau, sdt, hoten, gioitinh, cccd);
 
-        if (!matkhau || !sdt || !hoten || !gioitinh || !cccd || !email) {
-            return res.status(300).json({
-                message: 'Vui lòng nhập đầy đủ thông tin đăng nhập',
-            });
-        }
         const [checkSDT, fields] = await pool.execute(
             'SELECT * FROM person WHERE sdt = ?',
             [sdt],
         );
-        console.log(checkSDT.length);
         if (checkSDT.length !== 0) {
             return res.status(300).json({
                 message: 'Số điện thoại đã được sử dụng',
@@ -78,16 +90,6 @@ let signup = async (req, res) => {
         if (checkCCCD.length !== 0) {
             return res.status(300).json({
                 message: 'Căn cước công dân đã được sử dụng',
-            });
-        }
-
-        const [checkSDTAccount] = await pool.execute(
-            'SELECT * FROM account WHERE sdt = ?',
-            [sdt],
-        );
-        if (checkSDTAccount.length !== 0) {
-            return res.status(300).json({
-                message: 'Số điện thoại đã đăng ký tài khoản',
             });
         }
 
@@ -119,7 +121,7 @@ let signup = async (req, res) => {
     } catch (err) {
         console.log(err);
         return res.status(500).json({
-            message: 'Failed to signup',
+            message: 'Đăng ký tài khoản thất bại',
         });
     }
 };
@@ -144,10 +146,17 @@ let forgetPassword = async (req, res) => {
         }
         let newPassword = Math.random().toString(36).slice(-8);
         try {
-            sendMail.sendMail({ newPassword, email });
+            mail.SendMailer({ email, newPassword });
         } catch (err) {
             console.log(err);
         }
+        let salt = bcrypt.genSaltSync(10);
+        let hash = bcrypt.hashSync(newPassword, salt);
+        console.log(hash);
+        await pool.execute('UPDATE account SET matkhau = ? WHERE email = ?', [
+            hash,
+            email,
+        ]);
         return res.status(200).json({
             message: 'Gửi mail thành công',
         });
@@ -178,7 +187,7 @@ let changePassword = async (req, res) => {
         const data = jwt.verifyToken(token);
         const [account] = await pool.execute(
             'SELECT * FROM account WHERE sdt = ?',
-            [data.sdt],
+            [data.user.sdt],
         );
         const compareResult = await new Promise((resolve) =>
             bcrypt.compare(matkhau, account[0].matkhau, (err, res) =>
@@ -196,11 +205,10 @@ let changePassword = async (req, res) => {
 
         await pool.execute('UPDATE account SET matkhau = ? WHERE sdt = ?', [
             hash,
-            data.sdt,
+            data.user.sdt,
         ]);
         return res.status(200).json({
             message: 'Đổi mật khẩu thành công',
-            data: data,
         });
     } catch (err) {
         console.log(err);

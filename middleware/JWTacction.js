@@ -27,7 +27,7 @@ const verifyToken = (token) => {
     return data;
 };
 
-const authenticateToken = (req, res, nex) => {
+const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (token === null) {
@@ -35,6 +35,11 @@ const authenticateToken = (req, res, nex) => {
             message: 'Token không tồn tại',
         });
     }
+    verifyToken(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.status(403);
+        req.user = user;
+        next();
+    });
 };
 
 const decodeToken = (token) => {
