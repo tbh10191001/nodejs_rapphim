@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const jwtDecode = require('jwt-decode');
 require('dotenv').config();
+
 const createJWT = (data) => {
     let payload = data;
     let secretKey = process.env.JWT_SECRET;
@@ -28,16 +29,21 @@ const verifyToken = (token) => {
 };
 
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (token === null) {
+    if (!req.headers.authorization) {
         return res.status(404).json({
-            message: 'Token không tồn tại',
+            message: 'Vui lòng đăng nhập để thực hiện chức năng.',
         });
     }
-    verifyToken(token, process.env.JWT_SECRET, (err, user) => {
-        if (err) return res.status(403);
-        req.user = user;
+    const bearerToken = req.headers.authorization.split(' ')[1];
+    jwt.verify(bearerToken, process.env.JWT_SECRET, (err, payload) => {
+        if (err) {
+            const message =
+                err.name === 'JsonWebTokenError' ? 'Unauthorized' : err.message;
+            return res.status(404).json({
+                message: message,
+            });
+        }
+        req.payload = payload;
         next();
     });
 };
@@ -53,4 +59,4 @@ const decodeToken = (token) => {
     return decoded;
 };
 
-module.exports = { createJWT, verifyToken, decodeToken };
+module.exports = { createJWT, verifyToken, decodeToken, authenticateToken };

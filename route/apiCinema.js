@@ -3,9 +3,7 @@ const cinemaController = require('../controller/cinemaController');
 
 let Route = express.Router();
 
-Route.get('/getcinema', cinemaController.getCinema);
-Route.post('/getfiltersamecinema', cinemaController.getFilterSameCity);
-// Route.post('/forgetpassword', accountController.forgetPassword)
-// Route.post('/changepassword', accountController.changePassword)
+Route.get('/', cinemaController.getCinema);
+Route.get('/:id', cinemaController.getCinemaCity);
 
 module.exports = Route;

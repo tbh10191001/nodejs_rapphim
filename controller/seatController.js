@@ -3,9 +3,9 @@ const jwt = require('../middleware/JWTacction');
 
 let getSeatByIDRoom = async (req, res) => {
     try {
-        const { maphongchieu } = req.body;
+        const maphongchieu = req.params.id;
         const [data] = await pool.execute(
-            'SELECT ghe.maghe,  ghe.maloaighe,status, tenloaighe, giabonus FROM ghe INNER JOIN loaighe on ghe.maloaighe = loaighe.maloaighe  WHERE maphongchieu = ?',
+            'SELECT ghe.maghe, ghe.maloaighe, giaghe, tenloaighe FROM ghe INNER JOIN loaighe on ghe.maloaighe = loaighe.maloaighe  WHERE maphongchieu = ?',
             [maphongchieu],
         );
         return res.status(200).json({

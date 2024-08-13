@@ -4,36 +4,47 @@ const bcrypt = require('bcrypt');
 
 let updateInfoUser = async (req, res) => {
     try {
-        const { token, hoten, gioitinh, cccd } = req.body;
-
-        if (jwt.decodeToken(token) === null) {
-            return res.status(404).json({
-                message: 'Token is disabled',
-            });
+        const params = req.body;
+        const bearerToken = req.headers.authorization.split(' ')[1];
+        const decodedToken = jwt.decodeToken(bearerToken);
+        if (params.cccd) {
+            const [checkCCCD] = await pool.execute(
+                'SELECT cccd FROM person WHERE cccd = ?',
+                [params.cccd],
+            );
+            if (checkCCCD.length !== 0) {
+                return res.status(300).json({
+                    message: 'Căn cước công dân đã được sử dụng',
+                });
+            }
         }
 
-        if (jwt.decodeToken(token).exp < Date.now() / 1000) {
-            return res.status(404).json({
-                message: 'Token unqualified',
-            });
+        let queryUser = `UPDATE person SET `;
+        for (const [key, value] of Object.entries(params)) {
+            if ((key && value) || (key && value === 0)) {
+                if (key.localeCompare('gioitinh') === 0) {
+                    queryUser += `${key} = ${value}, `;
+                } else {
+                    queryUser += `${key} = '${value}', `;
+                }
+            }
         }
+        if (queryUser.endsWith(', ')) {
+            queryUser = queryUser.slice(0, queryUser.length - 2);
+        }
+        queryUser += ` WHERE sdt = ${decodedToken.user.sdt}`;
 
-        const data = jwt.verifyToken(token);
-        const [checkCCCD] = await pool.execute(
-            'SELECT cccd FROM person WHERE cccd = ?',
-            [cccd],
+        await pool.execute(queryUser);
+        const [person] = await pool.execute(
+            'SELECT * FROM person WHERE sdt = ?',
+            [decodedToken.user.sdt],
         );
-        if (checkCCCD.length !== 0) {
-            return res.status(300).json({
-                message: 'Căn cước công dân đã được sử dụng',
-            });
-        }
-        await pool.execute(
-            'UPDATE person SET hoten = ?, gioitinh = ?, cccd = ? WHERE sdt = ?',
-            [hoten, Number(gioitinh), cccd, data.user.sdt],
-        );
+        const role = decodedToken.role;
+        const user = person[0];
+        const data = { user, role, email: decodedToken.email };
         return res.status(200).json({
             message: 'Cập nhật thông tin người dùng thành công',
+            data: data,
         });
     } catch (err) {
         console.log(err);
@@ -43,95 +54,152 @@ let updateInfoUser = async (req, res) => {
     }
 };
 
-let refillWallet = async (req, res) => {
+let updateInfoCustomer = async (req, res) => {
     try {
-        const { token, vitien, matkhau } = req.body;
-
-        if (jwt.decodeToken(token) === null) {
-            return res.status(404).json({
-                message: 'Token is disabled',
-            });
+        const params = req.body;
+        if (params.cccd) {
+            const [checkCCCD] = await pool.execute(
+                'SELECT cccd FROM person WHERE cccd = ?',
+                [params.cccd],
+            );
+            if (checkCCCD.length !== 0) {
+                return res.status(300).json({
+                    message: 'Căn cước công dân đã được sử dụng',
+                });
+            }
         }
 
-        if (jwt.decodeToken(token).exp < Date.now() / 1000) {
-            return res.status(404).json({
-                message: 'Token unqualified',
-            });
+        let queryUser = `UPDATE person SET `;
+        for (const [key, value] of Object.entries(params)) {
+            if ((key && value) || (key && value === 0)) {
+                if (key.localeCompare('gioitinh') === 0) {
+                    queryUser += `${key} = ${value}, `;
+                } else {
+                    queryUser += `${key} = '${value}', `;
+                }
+            }
         }
+        if (queryUser.endsWith(', ')) {
+            queryUser = queryUser.slice(0, queryUser.length - 2);
+        }
+        queryUser += ` WHERE sdt = ${params.sdt}`;
 
-        const data = jwt.verifyToken(token);
-        const [account] = await pool.execute(
-            'SELECT * FROM account WHERE sdt = ?',
-            [data.user.sdt],
+        await pool.execute(queryUser);
+        const [person] = await pool.execute(
+            'SELECT * FROM person WHERE sdt = ?',
+            [params.sdt],
         );
-        const compareResult = await new Promise((resolve) =>
-            bcrypt.compare(matkhau, account[0].matkhau, (err, res) =>
-                resolve(res),
-            ),
-        );
-        if (!compareResult) {
-            return res.status(300).json({
-                message: 'Mật khẩu không chính xác',
-            });
-        }
-        const [checkVitien] = await pool.execute(
-            'SELECT vitien FROM khachhang WHERE sdt = ?',
-            [data.user.sdt],
-        );
-        const tien =
-            Number.parseFloat(checkVitien[0].vitien) +
-            Number.parseFloat(vitien);
-        await pool.execute('UPDATE khachhang SET vitien = ? WHERE sdt = ?', [
-            Number.parseFloat(tien),
-            data.user.sdt,
-        ]);
+        const role = params.role;
+        const user = person[0];
+        const data = { user, role, email: params.email };
         return res.status(200).json({
-            message: 'Nạp tiền thành công',
-            vitien: tien,
+            message: 'Cập nhật thông tin người dùng thành công',
+            data: data,
         });
     } catch (err) {
         console.log(err);
         return res.status(500).json({
-            message: 'Nạp tiền thất bại',
+            message: 'Cập nhật thông tin người dùng thất bại',
         });
     }
 };
 
-let getSticketsByToken = async (req, res) => {
+let getInfomation = async (req, res) => {
     try {
-        const { token } = req.body;
+        const bearerToken = req.headers.authorization.split(' ')[1];
+        const decodedToken = jwt.decodeToken(bearerToken);
+        console.log(decodedToken);
 
-        if (jwt.decodeToken(token) === null) {
-            return res.status(404).json({
-                message: 'Token is disabled',
-            });
-        }
-
-        if (jwt.decodeToken(token).exp < Date.now() / 1000) {
-            return res.status(404).json({
-                message: 'Token unqualified',
-            });
-        }
-
-        const data = jwt.verifyToken(token);
-        const [stickets] = await pool.execute(
-            'SELECT mave, trangthaive, trangthaivaorap, thoigianbatdau, ve.masuatchieu,  suatchieuphim.maphim, tenphim FROM ve INNER JOIN suatchieuphim ON ve.masuatchieu = suatchieuphim.masuatchieu INNER JOIN phim on suatchieuphim.maphim = phim.maphim WHERE ve.sdt = ?',
-            [data.user.sdt],
+        const [person] = await pool.execute(
+            'SELECT * FROM person WHERE sdt = ?',
+            [decodedToken.user.sdt],
         );
+        const role = decodedToken.role;
+        const user = person[0];
+        const data = { user, role, email: decodedToken.email };
+        console.log('data', data);
         return res.status(200).json({
-            message: 'Lấy danh sách vé thành công',
-            ve: stickets,
+            message: 'Lấy thông tin người dùng thành công',
+            data: data,
         });
     } catch (err) {
         console.log(err);
         return res.status(500).json({
-            message: 'Lấy danh sách vé thất bại',
+            message: 'Lấy thông tin người dùng thất bại',
+        });
+    }
+};
+
+let getCustomerAccount = async (req, res) => {
+    try {
+        const [data] = await pool.execute(
+            "SELECT email, matkhau, account.sdt, hoten FROM account INNER JOIN `role` ON account.marole = `role`.marole INNER JOIN person ON account.sdt = person.sdt WHERE account.marole ='2'",
+        );
+        return res.status(200).json({
+            message: 'Lấy danh sách tài khoản khách hàng thành công',
+            data: data,
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({
+            message: 'Lấy danh sách tài khoản khách hàng thất bại',
+        });
+    }
+};
+
+let getCustomerInformation = async (req, res) => {
+    try {
+        const [data] = await pool.execute(
+            "SELECT email, account.sdt, hoten, gioitinh, cccd FROM person INNER JOIN account ON person.sdt = account.sdt INNER JOIN `role` ON `role`.marole = account.marole WHERE account.marole ='2'",
+        );
+        return res.status(200).json({
+            message: 'Lấy danh sách thông tin khách hàng thành công',
+            data: data,
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({
+            message: 'Lấy anh sách thông tin khách hàng thất bại',
+        });
+    }
+};
+
+let getInfomationByID = async (req, res) => {
+    try {
+        const sdt = req.params.sdt;
+
+        const [person] = await pool.execute(
+            'SELECT * FROM person WHERE sdt = ?',
+            [sdt],
+        );
+        const [account] = await pool.execute(
+            'SELECT marole, email FROM account WHERE sdt = ?',
+            [sdt],
+        );
+        // const role = decodedToken.role;
+        const user = person[0];
+        const data = {
+            user,
+            role: { idrole: account[0].marole },
+            email: account[0].email,
+        };
+        return res.status(200).json({
+            message: 'Lấy thông tin người dùng thành công',
+            data: data,
+        });
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({
+            message: 'Lấy thông tin người dùng thất bại',
         });
     }
 };
 
 module.exports = {
     updateInfoUser,
-    refillWallet,
-    getSticketsByToken,
+    updateInfoCustomer,
+    getInfomation,
+    getCustomerAccount,
+    getCustomerInformation,
+    getInfomationByID,
 };

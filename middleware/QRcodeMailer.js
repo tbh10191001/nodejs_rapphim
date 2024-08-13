@@ -1,8 +1,19 @@
 const nodemailer = require('nodemailer');
+const qr = require('qrcode');
 require('dotenv').config();
 
-const QRcodeMailer = async ({ email, newPassword }) => {
+const generateQR = async (text) => {
     try {
+        const qrCode = await qr.toDataURL(text);
+        return qrCode;
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+const QRMailer = async ({ email, info }) => {
+    try {
+        const qrCode = await generateQR(info);
         const transporter = nodemailer.createTransport({
             service: 'Gmail',
             port: process.env.HOST_MAIL_PORT,
@@ -20,19 +31,27 @@ const QRcodeMailer = async ({ email, newPassword }) => {
             from: process.env.HOST_MAIL,
             to: email,
             subject: 'Filmax xin chào bạn',
-            generateTextFromHTML: true,
-            text: 'Your new password',
+            attachments: [
+                {
+                    filename: 'image.png',
+                    path: qrCode,
+                    cid: 'unique@nodemailer.com',
+                },
+            ],
+            text: 'Your QRCode',
             html: `<div>
-            <div>
-            <span style="font-size: 30px; font-weight: bold">Xin chào bạn</span>
-            </br>
-            </br>
-            <p style="font-size: 22px, font-weight: 600">Vui lòng nhập mật khẩu mới của bạn để đăng nhập vào trang web của chúng tôi</p>
-          <span>Đây là mật khẩu mới của bạn: </span>
-          <span style='font-weight: bold'>${newPassword}</span>
-          </div>
-           <p style="font-size: 22px, font-weight: 600">Filmax kính chúc quí khách một ngày tốt lành </p>
-          </div>`,
+                    <div style="font-size: 18px; font-weight: bold">
+                        Filmax xin trân trọng cảm ơn quí khách đã tin tưởng sử
+                        dụng dịch vụ của chúng tôi
+                    </div>
+                    <div>
+                        Mã QR Code của bạn:
+                        <div style="width: 50%; display: flex; justify-content: center">
+                            <img src="cid:unique@nodemailer.com" alt="QrCode" />
+                        </div>
+                    </div>
+                    <p>Bạn hãy sử dụng mã QR code để check in vào rạp tại Filmax bạn nhé.</p>
+                </div>`,
         };
 
         const data = await transporter.sendMail(
@@ -52,4 +71,4 @@ const QRcodeMailer = async ({ email, newPassword }) => {
     }
 };
 
-module.exports = { QRcodeMailer };
+module.exports = { QRMailer };

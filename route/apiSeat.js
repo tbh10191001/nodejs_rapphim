@@ -3,6 +3,6 @@ const seatController = require('../controller/seatController');
 
 let Route = express.Router();
 
-Route.post('/getseatbyidroom', seatController.getSeatByIDRoom);
+Route.get('/:id', seatController.getSeatByIDRoom);
 
 module.exports = Route;
